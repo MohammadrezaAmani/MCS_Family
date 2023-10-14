@@ -1,7 +1,7 @@
 # AUT INFO
 
 
-According to the tradition at Amirkabir University of Technology and a beautiful custom within the Faculty of Mathematics and Computer Science, every year, students with a format similar to `year-faculty_code-student_code` are recognized as "parents" for incoming students with the same format. For example, I, with the student ID `9913004`, am the "parent" of Amirhossein with the student ID 40013004, who entered the university exactly one year after me. As his first friend and mentor, I am responsible for helping him with course selection and surviving the challenging university life.
+According to the tradition at Amirkabir University of Technology and a beautiful custom within the Faculty of Mathematics and Computer Science, every year, students with a format similar to `year-faculty_code-student_code` are recognized as "parents" for incoming students with the same format. For example, I, with the student ID `9913004`, am the "parent" of Amirhossein with the student ID `40013004`, who entered the university exactly one year after me. As his first friend and mentor, I am responsible for helping him with course selection and surviving the challenging university life.
 
 Now, with this code, you can easily find your academic "parents" and see up to 20 generations above yourself.
 
