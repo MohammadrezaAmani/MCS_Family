@@ -4,6 +4,12 @@ from tools.html_tools import csrf, change_unicode
 
 
 class AutInfo:
+    """AUT Students information gatherer (idk this word has meaning or not)
+
+    Functions:
+        get: get a user
+        get_range: get a range of users
+    """
     URL = "https://samad.aut.ac.ir/index/index.rose"
     URL_MESSAGES = "https://samad.aut.ac.ir/messaging/searchUsers.rose?q=%s"
     URL_LOGIN = "https://samad.aut.ac.ir/j_security_check"
@@ -31,6 +37,11 @@ class AutInfo:
         self._password = value
 
     def login(self) -> bool:
+        """login to `samad.aut.ac.ir`
+
+        Returns:
+            bool: login status
+        """
         login_page = self.session.get(self.URL)
         csrf_token = csrf(login_page.text)
         del login_page
