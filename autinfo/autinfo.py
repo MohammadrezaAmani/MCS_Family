@@ -1,6 +1,6 @@
 import re
 from requests import session
-from tools.html_tools import csrf, change_unicode
+from .html_tools import csrf, change_unicode
 
 
 class AutInfo:
@@ -10,6 +10,7 @@ class AutInfo:
         get: get a user
         get_range: get a range of users
     """
+
     URL = "https://samad.aut.ac.ir/index/index.rose"
     URL_MESSAGES = "https://samad.aut.ac.ir/messaging/searchUsers.rose?q=%s"
     URL_LOGIN = "https://samad.aut.ac.ir/j_security_check"
