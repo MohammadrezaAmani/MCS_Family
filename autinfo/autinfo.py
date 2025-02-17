@@ -1,78 +1,103 @@
+import asyncio
 import re
-from requests import session
-from .html_tools import csrf, change_unicode
+from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    import aiohttp
+
+    _async_support = True
+except ModuleNotFoundError:
+    _async_support = False
+
+try:
+    import requests
+
+    _sync_support = True
+except ModuleNotFoundError:
+    _sync_support = False
+
+from .config import URL, URL_LOGIN, URL_MESSAGES
+from .utils import change_unicode, csrf
 
 
-class AutInfo:
-    """AUT Students information gatherer (idk this word has meaning or not)
-
-    Functions:
-        get: get a user
-        get_range: get a range of users
-    """
-
-    URL = "https://samad.aut.ac.ir/index/index.rose"
-    URL_MESSAGES = "https://samad.aut.ac.ir/messaging/searchUsers.rose?q=%s"
-    URL_LOGIN = "https://samad.aut.ac.ir/j_security_check"
+class BaseAutInfo:
+    URL = URL
+    URL_MESSAGES = URL_MESSAGES
+    URL_LOGIN = URL_LOGIN
 
     def __init__(self, username: str, password: str) -> None:
         self.username = username
         self.password = password
-        self.session = session()
-        self.login()
 
-    @property
-    def username(self) -> str:
-        return self._username
+    @staticmethod
+    def format_data(text: str) -> List[Tuple[str, str]]:
+        return re.findall(r"(\d{1,12})\(([^)]+)\)", text)
 
-    @username.setter
-    def username(self, value: str):
-        self._username = value
-
-    @property
-    def password(self) -> str:
-        return self._password
-
-    @password.setter
-    def password(self, value: str):
-        self._password = value
-
-    def login(self) -> bool:
-        """login to `samad.aut.ac.ir`
-
-        Returns:
-            bool: login status
-        """
-        login_page = self.session.get(self.URL)
-        csrf_token = csrf(login_page.text)
-        del login_page
-        data = {
+    def get_login_data(self, csrf_token: str) -> Dict[str, Any]:
+        return {
             "_csrf": csrf_token,
             "username": self.username,
             "password": self.password,
             "login": "ورود",
         }
-        try:
-            self.session.post(self.URL_LOGIN, data=data)
-            return True
-        except Exception as e:
-            print(e)
-            return False
 
-    def format_data(self, text: str) -> list:
-        pattern = r"(\d{1,12})\(([^)]+)\)"
-        matches = re.findall(pattern, text)
-        student_info = [(match[0], match[1]) for match in matches]
-        return student_info
 
-    def get(self, student_id: int) -> list:
-        return self.format_data(
-            self.session.get(self.URL_MESSAGES % change_unicode(str(student_id))).text
-        )
+class AutInfoAsync(BaseAutInfo):
+    def __init__(self, username: str, password: str) -> None:
+        super().__init__(username, password)
+        if not _async_support:
+            raise ImportError("Install aiohttp via `pip install aiohttp`")
+        self.session: Optional[aiohttp.ClientSession] = None
 
-    def get_range(self, start: int, end: int) -> list:
-        start, end = int(start), int(end)
-        #! this function can be optimized but I'm so tired. :'(
-        # TODO: with `self.get` you can get 10 number of queries and just customize that
-        #! take care about the start and end of this function
-        return [self.get(i)[0] for i in range(start, end + 1)]
+    async def __aenter__(self):
+        self.session = aiohttp.ClientSession()
+        await self.login()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
+
+    async def login(self) -> bool:
+        async with self.session.get(self.URL) as response:
+            csrf_token = csrf(await response.text())
+        async with self.session.post(
+            self.URL_LOGIN, data=self.get_login_data(csrf_token)
+        ) as login_response:
+            if login_response.status <= 400:
+                return True
+            raise Exception(
+                "Login failed with status code: {}".format(login_response.status)
+            )
+
+    async def get(self, student_id: int) -> List[Tuple[str, str]]:
+        async with self.session.get(
+            self.URL_MESSAGES % change_unicode(str(student_id))
+        ) as response:
+            return self.format_data(await response.text())
+
+    async def get_range(self, start: int, end: int) -> List[str]:
+        results = await asyncio.gather(*(self.get(i) for i in range(start, end + 1)))
+        return [res for res in results if res]
+
+
+class AutInfoSync(BaseAutInfo):
+    def __init__(self, username: str, password: str) -> None:
+        super().__init__(username, password)
+        if not _sync_support:
+            raise ImportError("Install requests via `pip install requests`")
+        self.session = requests.Session()
+        self.login()
+
+    def login(self) -> bool:
+        response = self.session.get(self.URL)
+        csrf_token = csrf(response.text)
+        self.session.post(self.URL_LOGIN, data=self.get_login_data(csrf_token))
+        return True
+
+    def get(self, student_id: int) -> List[Tuple[str, str]]:
+        response = self.session.get(self.URL_MESSAGES % change_unicode(str(student_id)))
+        return self.format_data(response.text)
+
+    def get_range(self, start: int, end: int) -> List[str]:
+        return [res[0] for i in range(start, end + 1) if (res := self.get(i))]
