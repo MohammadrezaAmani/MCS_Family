@@ -2,7 +2,7 @@ import asyncio
 
 from autinfo import AutInfoAsync, AutInfoSync
 
-username, password = "9913004", "0820494501"
+username, password = "9913004", "11223344"
 
 
 async def main_async():
