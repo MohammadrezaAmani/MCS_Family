@@ -47,18 +47,25 @@ class AutInfoAsync(BaseAutInfo):
         super().__init__(username, password)
         if not _async_support:
             raise ImportError("Install aiohttp via `pip install aiohttp`")
-        self.session: Optional[aiohttp.ClientSession] = None
+        self.session: Optional["aiohttp.ClientSession"] = None
 
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession()  # type: ignore
         await self.login()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
+    ) -> None:
         if self.session:
             await self.session.close()
 
     async def login(self) -> bool:
+        if not self.session:
+            return False
         async with self.session.get(self.URL) as response:
             csrf_token = csrf(await response.text())
         async with self.session.post(
@@ -70,13 +77,15 @@ class AutInfoAsync(BaseAutInfo):
                 "Login failed with status code: {}".format(login_response.status)
             )
 
-    async def get(self, student_id: int) -> List[Tuple[str, str]]:
+    async def get(self, student_id: int) -> List[Tuple[str, str]] | None:
+        if not self.session:
+            return None
         async with self.session.get(
             self.URL_MESSAGES % change_unicode(str(student_id))
         ) as response:
             return self.format_data(await response.text())
 
-    async def get_range(self, start: int, end: int) -> List[str]:
+    async def get_range(self, start: int, end: int) -> list[List[Tuple[str, str]]]:
         results = await asyncio.gather(*(self.get(i) for i in range(start, end + 1)))
         return [res for res in results if res]
 
@@ -86,7 +95,7 @@ class AutInfoSync(BaseAutInfo):
         super().__init__(username, password)
         if not _sync_support:
             raise ImportError("Install requests via `pip install requests`")
-        self.session = requests.Session()
+        self.session = requests.Session()  # type: ignore
         self.login()
 
     def login(self) -> bool:
@@ -99,5 +108,5 @@ class AutInfoSync(BaseAutInfo):
         response = self.session.get(self.URL_MESSAGES % change_unicode(str(student_id)))
         return self.format_data(response.text)
 
-    def get_range(self, start: int, end: int) -> List[str]:
+    def get_range(self, start: int, end: int) -> list[Tuple[str, str]]:
         return [res[0] for i in range(start, end + 1) if (res := self.get(i))]

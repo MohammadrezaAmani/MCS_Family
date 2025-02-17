@@ -3,5 +3,4 @@ def csrf(html: str) -> str:
 
 
 def change_unicode(student_id: str) -> str:
-    {"0": "%DB%B0"}
     return "".join(["%DB%B{}".format(i) for i in str(student_id).strip()])
